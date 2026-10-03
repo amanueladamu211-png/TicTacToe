@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#05050d">
+<title>Tic-Tac-Toe</title>
+
+<!-- CrazyGames SDK -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{--bg-void:#05050d;--cyan:#00fff2;--cyan-soft:rgba(0,255,242,0.35);--magenta:#ff2ee8;--magenta-soft:rgba(255,46,232,0.35);--purple:#8a3bff;--text:#eef0ff;--text-dim:#9a9ac2;--panel:rgba(16,16,32,0.82);--panel-solid:#0d0d1e;--border:rgba(255,255,255,0.10);--radius:14px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;min-height:100vh;background:var(--bg-void);color:var(--text);font-family:'Rajdhani',sans-serif;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+h1,h2,h3,.btn,.logo,.subtitle,.score-value,.cell,.mode-label,.diff-btn,.segment-btn{font-family:'Orbitron',sans-serif}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.hidden{display:none !important}
+.btn,.cell,.toggle-switch,.segment-btn,.diff-btn{user-select:none;-webkit-user-select:none;touch-action:manipulation}
+
+/* BACKGROUND */
+.bg-gradient{position:fixed;inset:0;z-index:-2;background:radial-gradient(circle at 18% 25%,rgba(0,255,242,0.10),transparent 42%),radial-gradient(circle at 82% 75%,rgba(255,46,232,0.10),transparent 42%),radial-gradient(circle at 50% 50%,rgba(138,59,255,0.08),transparent 55%),var(--bg-void);background-size:220% 220%;animation:gradientDrift 42s ease-in-out infinite alternate}
+.bg-gradient.relaxed{animation-duration:85s}
+.bg-gradient.paused{animation-play-state:paused}
+@keyframes gradientDrift{0%{background-position:0% 0%,100% 100%,50% 50%,0 0}100%{background-position:100% 60%,0% 40%,60% 45%,0 0}}
+#bg-canvas{position:fixed;inset:0;z-index:-1;display:block}
+
+/* SCREENS */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;opacity:0;pointer-events:none;transition:opacity .45s ease;padding:clamp(14px,3vw,32px);overflow-y:auto}
+.screen.active{opacity:1;pointer-events:auto}
+#screen-menu{justify-content:center}
+#screen-game{justify-content:flex-start;padding-top:clamp(12px,2.5vh,28px)}
+
+/* MENU */
+.menu-content{text-align:center;animation:fadeSlideUp .6s ease;max-width:520px;width:100%}
+.logo{font-size:clamp(2.4rem,8.5vw,4.2rem);font-weight:900;margin:0;letter-spacing:.1em;color:var(--text);text-shadow:0 0 14px var(--cyan-soft),0 0 34px var(--magenta-soft);animation:logoGlow 3.4s ease-in-out infinite alternate}
+.subtitle{margin:.4em 0 2em;letter-spacing:.4em;font-size:clamp(.7rem,2.4vw,1rem);color:var(--text-dim);font-weight:600}
+@keyframes logoGlow{from{text-shadow:0 0 14px var(--cyan-soft),0 0 30px var(--magenta-soft)}to{text-shadow:0 0 22px var(--cyan-soft),0 0 46px var(--magenta-soft)}}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.menu-buttons{display:flex;flex-direction:column;gap:16px;align-items:center}
+.btn{padding:16px 38px;border-radius:10px;font-weight:700;letter-spacing:.14em;font-size:clamp(.9rem,2.4vw,1.05rem);border:2px solid var(--border);background:var(--panel);color:var(--text);min-width:230px;transition:transform .15s ease,box-shadow .25s ease,border-color .25s ease}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0) scale(.97)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.btn-primary{border-color:var(--cyan)}
+.btn-primary:hover{box-shadow:0 0 22px var(--cyan-soft)}
+.btn-secondary{border-color:var(--purple)}
+.btn-secondary:hover{box-shadow:0 0 22px rgba(138,59,255,0.4)}
+.btn-danger{border-color:var(--magenta)}
+.btn-danger:hover{box-shadow:0 0 20px var(--magenta-soft)}
+.btn-online{border-color:var(--magenta)}
+.btn-online:hover{box-shadow:0 0 22px var(--magenta-soft)}
+.btn-icon{min-width:auto;padding:10px 16px;font-size:.85rem}
+
+/* GAME HEADER */
+.game-header{width:100%;max-width:640px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.header-actions{display:flex;align-items:center;gap:10px}
+.mode-label{font-size:clamp(.85rem,2.2vw,1.1rem);letter-spacing:.2em;color:var(--text-dim);font-weight:700}
+
+/* PLAYER LABELS */
+.player-labels{display:flex;align-items:center;gap:14px;margin-bottom:10px;font-size:clamp(.8rem,2.2vw,1rem);letter-spacing:.1em;font-weight:700}
+.player-labels .label-player{color:var(--cyan)}
+.player-labels .label-ai{color:var(--magenta)}
+.player-labels .vs{color:var(--text-dim);font-size:.8em}
+
+/* DIFFICULTY */
+.difficulty-selector{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;justify-content:center}
+.diff-btn{padding:8px 16px;border-radius:20px;border:2px solid var(--border);background:var(--panel);font-size:.75rem;font-weight:700;letter-spacing:.1em;color:var(--text-dim);transition:.2s}
+.diff-btn.active{border-color:var(--purple);color:var(--text);box-shadow:0 0 14px rgba(138,59,255,0.35)}
+
+/* SCOREBOARD */
+.scoreboard{display:flex;gap:clamp(10px,4vw,28px);margin-bottom:14px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px clamp(16px,5vw,32px)}
+.score-item{display:flex;flex-direction:column;align-items:center;min-width:64px}
+.score-label{font-size:.72rem;letter-spacing:.15em;color:var(--text-dim);font-weight:700}
+.score-value{font-size:clamp(1.3rem,4vw,1.9rem);font-weight:900}
+.score-x .score-value{color:var(--cyan)}
+.score-o .score-value{color:var(--magenta)}
+.score-draws .score-value{color:var(--text)}
+
+/* TURN */
+.turn-indicator{font-size:clamp(.9rem,2.6vw,1.2rem);font-weight:700;letter-spacing:.12em;margin-bottom:16px;min-height:1.6em;text-align:center}
+.turn-indicator.thinking{color:var(--magenta);animation:pulseText 1s ease-in-out infinite}
+@keyframes pulseText{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* BOARD */
+.board-wrap{width:min(92vw,460px);margin:0 auto 20px}
+.board{position:relative;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:clamp(8px,2.2vw,14px);width:100%;aspect-ratio:1/1}
+.board.locked{cursor:not-allowed}
+.cell{position:relative;background:var(--panel);border:2px solid var(--border);border-radius:12px;font-size:clamp(2.2rem,11vw,3.6rem);font-weight:700;display:flex;align-items:center;justify-content:center;transition:box-shadow .2s,transform .15s,border-color .2s}
+.cell:not(:disabled):hover{border-color:var(--cyan);box-shadow:0 0 18px var(--cyan-soft);transform:translateY(-2px)}
+.cell:disabled{cursor:not-allowed}
+.cell.x-mark{color:var(--cyan);text-shadow:0 0 14px var(--cyan);animation:popIn .25s ease}
+.cell.o-mark{color:var(--magenta);text-shadow:0 0 14px var(--magenta);animation:popIn .25s ease}
+@keyframes popIn{from{transform:scale(.25);opacity:0}to{transform:scale(1);opacity:1}}
+.cell.win-cell{animation:winPulse 1s ease-in-out infinite alternate;border-color:currentColor}
+@keyframes winPulse{from{box-shadow:0 0 10px currentColor}to{box-shadow:0 0 26px currentColor}}
+.win-line-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity .1s}
+.win-line-svg.visible{opacity:1}
+.win-line{stroke-width:9;stroke-linecap:round;fill:none}
+.win-line-x{stroke:var(--cyan);filter:drop-shadow(0 0 8px var(--cyan))}
+.win-line-o{stroke:var(--magenta);filter:drop-shadow(0 0 8px var(--magenta))}
+
+/* CONFETTI */
+#confetti-container{position:fixed;inset:0;z-index:999;pointer-events:none;overflow:hidden}
+.confetti-piece{position:absolute;top:-20px;width:9px;height:15px;opacity:1;animation:confettiFall linear forwards}
+@keyframes confettiFall{0%{transform:translate3d(0,-20px,0) rotate(0deg);opacity:1}70%{opacity:1}100%{transform:translate3d(var(--drift),110vh,0) rotate(var(--rotation));opacity:0}}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(3,3,10,0.72);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel-solid);border:1px solid var(--border);border-radius:16px;padding:clamp(20px,4vw,32px);width:100%;max-width:480px;max-height:86vh;overflow-y:auto;animation:modalPop .3s ease;box-shadow:0 0 40px rgba(0,255,242,0.08),0 0 60px rgba(255,46,232,0.06)}
+@keyframes modalPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-header h2{margin:0;font-size:1.3rem;letter-spacing:.15em}
+.btn-close{font-size:1.3rem;width:36px;height:36px;border-radius:50%}
+.btn-close:hover{color:var(--magenta)}
+
+/* SETTINGS */
+.settings-section{margin-bottom:22px}
+.settings-section h3{font-size:.85rem;letter-spacing:.2em;color:var(--purple);margin:0 0 12px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.setting-row label{font-size:.95rem;color:var(--text-dim)}
+.setting-row input[type=range]{width:130px;accent-color:var(--cyan)}
+.setting-row-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.toggle-switch{width:52px;height:28px;border-radius:20px;background:rgba(255,255,255,0.08);border:1px solid var(--border);position:relative;flex-shrink:0}
+.toggle-knob{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--text-dim);transition:left .2s ease,background .2s ease}
+.toggle-switch.active{background:rgba(0,255,242,0.15);border-color:var(--cyan)}
+.toggle-switch.active .toggle-knob{left:26px;background:var(--cyan)}
+.segmented{display:flex;gap:6px;flex-wrap:wrap}
+.segment-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.03);font-size:.72rem;letter-spacing:.08em;color:var(--text-dim);font-weight:700}
+.segment-btn.active{border-color:var(--cyan);color:var(--text);background:rgba(0,255,242,0.08)}
+
+/* GAME OVER */
+.gameover-modal{text-align:center;max-width:400px}
+.gameover-modal h2{font-size:clamp(1.4rem,5vw,1.9rem);letter-spacing:.1em;margin:6px 0 26px;color:var(--text);text-shadow:0 0 16px var(--cyan-soft)}
+.gameover-actions{display:flex;flex-direction:column;gap:12px}
+button:focus-visible,.cell:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+
+/* MOBILE */
+@media (max-width:480px){
+  .menu-buttons .btn,.gameover-actions .btn,#btn-reset-match{width:100%}
+  .btn{padding:14px 22px}
+  .game-header{flex-wrap:wrap}
+  .btn-icon{padding:8px 12px;font-size:.8rem}
+}
+
+/* GAME SCREEN LAYOUT */
+#screen-game{justify-content:center;padding:12px 20px;overflow:hidden}
+#screen-game .game-header{max-width:1100px;width:100%;margin-bottom:8px;flex-shrink:0}
+#screen-game .player-labels{margin-bottom:6px;flex-shrink:0}
+#screen-game .difficulty-selector{margin-bottom:8px;flex-shrink:0}
+#screen-game .scoreboard{margin-bottom:8px;padding:8px 22px;flex-shrink:0}
+#screen-game .turn-indicator{margin-bottom:8px;min-height:auto;flex-shrink:0}
+#screen-game .board-wrap{width:min(55vh,430px);margin:0 0 10px;flex-shrink:1}
+#screen-game #btn-reset-match{flex-shrink:0}
+
+@media (orientation:landscape) and (max-height:700px){
+  #screen-game{padding:6px 18px;justify-content:center}
+  #screen-game .game-header{margin-bottom:4px}
+  #screen-game .player-labels{margin-bottom:3px}
+  #screen-game .difficulty-selector{margin-bottom:4px}
+  #screen-game .scoreboard{margin-bottom:4px;padding:5px 18px}
+  #screen-game .turn-indicator{margin-bottom:4px}
+  #screen-game .board-wrap{width:min(48vh,340px);margin-bottom:6px}
+  #screen-game .cell{font-size:clamp(2rem,8vh,3.2rem)}
+}
+
+@media (orientation:portrait){
+  #screen-game{overflow-y:auto;justify-content:flex-start;padding-top:clamp(12px,2.5vh,28px)}
+  #screen-game .board-wrap{width:min(92vw,460px);margin:0 auto 20px}
+}
+
+/* TOAST + ONLINE STATUS */
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:var(--panel-solid);border:1px solid var(--cyan);color:var(--text);padding:12px 22px;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:.8rem;letter-spacing:.1em;box-shadow:0 0 20px var(--cyan-soft);opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;z-index:1000;text-align:center;max-width:90vw}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+#online-status{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:30;background:var(--panel-solid);border:1px solid var(--cyan);color:var(--text);padding:8px 14px;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:.08em;text-align:center;box-shadow:0 0 16px var(--cyan-soft);pointer-events:none}
+</style>
+</head>
+
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="bg-gradient" id="bg-gradient"></div>
+
+<div id="confetti-container"></div>
+<div id="toast" class="toast"></div>
+<div id="online-status" class="hidden"></div>
+
+<!-- MAIN MENU -->
+<main id="screen-menu" class="screen active">
+  <div class="menu-content">
+    <h1 class="logo">TIC-TAC-TOE</h1>
+    <p class="subtitle">NEON TIC-TAC-TOE</p>
+
+    <nav class="menu-buttons">
+      <button id="btn-2p" class="btn btn-primary">2 PLAYERS</button>
+      <button id="btn-ai" class="btn btn-primary">VS AI</button>
+      <button id="btn-online" class="btn btn-online">ONLINE PLAYER</button>
+      <button id="btn-settings-menu" class="btn btn-secondary">SETTINGS</button>
+    </nav>
+  </div>
+</main>
+
+<!-- GAME SCREEN -->
+<section id="screen-game" class="screen">
+
+  <div class="game-header">
+    <button id="btn-back" class="btn btn-icon" aria-label="Back to menu">‹ MENU</button>
+
+    <div class="mode-label" id="mode-label">2 PLAYERS</div>
+
+    <div class="header-actions">
+      <button id="btn-invite" class="btn btn-icon hidden" aria-label="Invite a friend">👥 INVITE</button>
+      <button id="btn-settings-game" class="btn btn-icon" aria-label="Open settings">⚙ SETTINGS</button>
+    </div>
+  </div>
+
+  <div class="player-labels hidden" id="player-labels">
+    <span class="label-player">PLAYER X</span>
+    <span class="vs">VS</span>
+    <span class="label-ai">AI</span>
+  </div>
+
+  <div class="difficulty-selector hidden" id="difficulty-selector">
+    <button class="diff-btn" data-difficulty="easy">EASY</button>
+    <button class="diff-btn" data-difficulty="medium">MEDIUM</button>
+    <button class="diff-btn" data-difficulty="hard">HARD</button>
+  </div>
+
+  <div class="scoreboard" id="scoreboard">
+    <div class="score-item score-x">
+      <span class="score-label">X</span>
+      <span class="score-value" id="score-x">0</span>
+    </div>
+    <div class="score-item score-draws">
+      <span class="score-label">DRAWS</span>
+      <span class="score-value" id="score-draws">0</span>
+    </div>
+    <div class="score-item score-o">
+      <span class="score-label">O</span>
+      <span class="score-value" id="score-o">0</span>
+    </div>
+  </div>
+
+  <div class="turn-indicator" id="turn-indicator" aria-live="polite">PLAYER X'S TURN</div>
+
+  <div class="board-wrap">
+    <div class="board" id="board">
+      <button class="cell" data-index="0" aria-label="Cell 1: empty"></button>
+      <button class="cell" data-index="1" aria-label="Cell 2: empty"></button>
+      <button class="cell" data-index="2" aria-label="Cell 3: empty"></button>
+      <button class="cell" data-index="3" aria-label="Cell 4: empty"></button>
+      <button class="cell" data-index="4" aria-label="Cell 5: empty"></button>
+      <button class="cell" data-index="5" aria-label="Cell 6: empty"></button>
+      <button class="cell" data-index="6" aria-label="Cell 7: empty"></button>
+      <button class="cell" data-index="7" aria-label="Cell 8: empty"></button>
+      <button class="cell" data-index="8" aria-label="Cell 9: empty"></button>
+
+      <svg class="win-line-svg" id="win-line-svg" viewBox="0 0 300 300" preserveAspectRatio="none">
+        <line id="win-line" class="win-line" x1="0" y1="0" x2="0" y2="0"></line>
+      </svg>
+    </div>
+  </div>
+
+  <button id="btn-reset-match" class="btn btn-secondary">RESET MATCH</button>
+</section>
+
+<!-- SETTINGS -->
+<div class="modal-overlay hidden" id="modal-settings">
+  <div class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+
+    <div class="modal-header">
+      <h2 id="settings-title">SETTINGS</h2>
+      <button class="btn-close" id="btn-close-settings" aria-label="Close settings">✕</button>
+    </div>
+
+    <div class="modal-body">
+
+      <section class="settings-section">
+        <h3>AUDIO</h3>
+
+        <div class="setting-row">
+          <label>Sound Effects</label>
+          <button class="toggle-switch" id="toggle-sfx" role="switch" aria-checked="true">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+
+        <div class="setting-row">
+          <label for="slider-sfx-vol">SFX Volume</label>
+          <input type="range" id="slider-sfx-vol" min="0" max="100" value="50">
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>VISUALS</h3>
+
+        <div class="setting-row">
+          <label>Background Animation</label>
+          <button class="toggle-switch" id="toggle-bg-anim" role="switch" aria-checked="true">
+            <span class="toggle-knob"></span>
+          </button>
+        </div>
+
+        <div class="setting-row">
+          <label>Animation Speed</label>
+          <div class="segmented" id="segment-anim-speed">
+            <button class="segment-btn" data-value="relaxed">RELAXED</button>
+            <button class="segment-btn" data-value="normal">NORMAL</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>GAMEPLAY</h3>
+
+        <div class="setting-row">
+          <label>Default Game Mode</label>
+          <div class="segmented" id="segment-default-mode">
+            <button class="segment-btn" data-value="2p">2 PLAYERS</button>
+            <button class="segment-btn" data-value="ai">VS AI</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label>Default AI Difficulty</label>
+          <div class="segmented" id="segment-default-difficulty">
+            <button class="segment-btn" data-value="easy">EASY</button>
+            <button class="segment-btn" data-value="medium">MEDIUM</button>
+            <button class="segment-btn" data-value="hard">HARD</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>DATA</h3>
+        <div class="setting-row-buttons">
+          <button class="btn btn-danger" id="btn-reset-scores">RESET SCORES</button>
+          <button class="btn btn-danger" id="btn-reset-settings">RESET SETTINGS</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div class="modal-overlay hidden" id="modal-gameover">
+  <div class="modal gameover-modal" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
+    <h2 id="gameover-title" aria-live="assertive">PLAYER X WINS!</h2>
+    <div class="gameover-actions">
+      <button class="btn btn-primary" id="btn-play-again">PLAY AGAIN</button>
+      <button class="btn btn-secondary" id="btn-view-board">VIEW BOARD</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================
+   ONLINE SERVER
+   ----------------------------
+   Paste your deployed Socket.IO server URL below.
+   Example: const SERVER_URL = 'https://my-server.onrender.com';
+============================ */
+
+const SERVER_URL = '';
+
+let onlineSocket = null;
+let onlineRoomId = null;
+let onlinePlayer = null;
+let onlineActive = false;
+let onlineWaiting = false;
+let onlineQuick = false;
+let onlineRematchRequested = false;
+let onlineIncomingRoomId = null;
+let onlineLastActionAt = 0;
+
+/* ============================
+   SETTINGS
+============================ */
+
+const DEFAULT_SETTINGS = {
+  sfxOn:true,
+  sfxVolume:50,
+  bgAnimOn:true,
+  bgAnimSpeed:'normal',
+  defaultMode:'2p',
+  defaultDifficulty:'medium'
+};
+
+const DEFAULT_SCORES = {x:0,o:0,draws:0};
+
+const WIN_COMBOS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+const LINE_COORDS = {
+  '0,1,2':[50,50,250,50],
+  '3,4,5':[50,150,250,150],
+  '6,7,8':[50,250,250,250],
+  '0,3,6':[50,50,50,250],
+  '1,4,7':[150,50,150,250],
+  '2,5,8':[250,50,250,250],
+  '0,4,8':[50,50,250,250],
+  '2,4,6':[250,50,50,250]
+};
+
+/* ============================
+   GAME STATE
+============================ */
+
+let settings = Object.assign({},DEFAULT_SETTINGS);
+let scores = Object.assign({},DEFAULT_SCORES);
+
+let gameMode = '2p';
+let difficulty = 'medium';
+let board = Array(9).fill(null);
+let currentPlayer = 'X';
+let gameActive = false;
+let moveToken = 0;
+
+let audioCtx = null;
+let bgAnimationId = null;
+let particles = [];
+let speedMultiplier = 1;
+
+/* ============================
+   DOM
+============================ */
+
+let dom = {};
+
+function cacheDOM(){
+  dom.screenMenu = document.getElementById('screen-menu');
+  dom.screenGame = document.getElementById('screen-game');
+  dom.btn2p = document.getElementById('btn-2p');
+  dom.btnAi = document.getElementById('btn-ai');
+  dom.btnOnline = document.getElementById('btn-online');
+  dom.btnSettingsMenu = document.getElementById('btn-settings-menu');
+  dom.btnSettingsGame = document.getElementById('btn-settings-game');
+  dom.btnCloseSettings = document.getElementById('btn-close-settings');
+  dom.btnBack = document.getElementById('btn-back');
+  dom.btnInvite = document.getElementById('btn-invite');
+  dom.modeLabel = document.getElementById('mode-label');
+  dom.playerLabels = document.getElementById('player-labels');
+  dom.difficultySelector = document.getElementById('difficulty-selector');
+  dom.diffButtons = Array.from(document.querySelectorAll('.diff-btn'));
+  dom.scoreboard = document.getElementById('scoreboard');
+  dom.scoreX = document.getElementById('score-x');
+  dom.scoreO = document.getElementById('score-o');
+  dom.scoreDraws = document.getElementById('score-draws');
+  dom.turnIndicator = document.getElementById('turn-indicator');
+  dom.board = document.getElementById('board');
+  dom.cells = Array.from(document.querySelectorAll('.cell'));
+  dom.winLineSvg = document.getElementById('win-line-svg');
+  dom.winLine = document.getElementById('win-line');
+  dom.btnResetMatch = document.getElementById('btn-reset-match');
+  dom.modalSettings = document.getElementById('modal-settings');
+  dom.modalGameover = document.getElementById('modal-gameover');
+  dom.gameoverTitle = document.getElementById('gameover-title');
+  dom.btnPlayAgain = document.getElementById('btn-play-again');
+  dom.btnViewBoard = document.getElementById('btn-view-board');
+  dom.toggleSfx = document.getElementById('toggle-sfx');
+  dom.sliderSfxVol = document.getElementById('slider-sfx-vol');
+  dom.toggleBgAnim = document.getElementById('toggle-bg-anim');
+  dom.btnResetScores = document.getElementById('btn-reset-scores');
+  dom.btnResetSettings = document.getElementById('btn-reset-settings');
+  dom.bgGradient = document.getElementById('bg-gradient');
+  dom.canvas = document.getElementById('bg-canvas');
+  dom.confetti = document.getElementById('confetti-container');
+}
+
+/* ============================
+   STORAGE
+============================ */
+
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem('tictactoe_settings_v2');
+    if(!raw) return Object.assign({},DEFAULT_SETTINGS);
+
+    const p = JSON.parse(raw);
+    const s = Object.assign({},DEFAULT_SETTINGS);
+
+    if(typeof p.sfxOn === 'boolean') s.sfxOn = p.sfxOn;
+    if(typeof p.sfxVolume === 'number' && p.sfxVolume >= 0 && p.sfxVolume <= 100) s.sfxVolume = p.sfxVolume;
+    if(typeof p.bgAnimOn === 'boolean') s.bgAnimOn = p.bgAnimOn;
+    if(p.bgAnimSpeed === 'relaxed' || p.bgAnimSpeed === 'normal') s.bgAnimSpeed = p.bgAnimSpeed;
+    if(p.defaultMode === '2p' || p.defaultMode === 'ai') s.defaultMode = p.defaultMode;
+    if(['easy','medium','hard'].indexOf(p.defaultDifficulty) !== -1) s.defaultDifficulty = p.defaultDifficulty;
+
+    return s;
+  }catch(e){
+    return Object.assign({},DEFAULT_SETTINGS);
+  }
+}
+
+function saveSettings(){
+  try{localStorage.setItem('tictactoe_settings_v2',JSON.stringify(settings));}catch(e){}
+}
+
+function loadScores(){
+  try{
+    const raw = localStorage.getItem('tictactoe_scores_v2');
+    if(!raw) return Object.assign({},DEFAULT_SCORES);
+
+    const p = JSON.parse(raw);
+    const s = Object.assign({},DEFAULT_SCORES);
+
+    if(typeof p.x === 'number' && p.x >= 0) s.x = Math.floor(p.x);
+    if(typeof p.o === 'number' && p.o >= 0) s.o = Math.floor(p.o);
+    if(typeof p.draws === 'number' && p.draws >= 0) s.draws = Math.floor(p.draws);
+
+    return s;
+  }catch(e){
+    return Object.assign({},DEFAULT_SCORES);
+  }
+}
+
+function saveScores(){
+  try{localStorage.setItem('tictactoe_scores_v2',JSON.stringify(scores));}catch(e){}
+}
+
+/* ============================
+   BACKGROUND
+============================ */
+
+function resizeCanvas(){
+  if(!dom.canvas) return;
+  dom.canvas.width = window.innerWidth;
+  dom.canvas.height = window.innerHeight;
+}
+
+function createParticles(count){
+  particles = [];
+  for(let i = 0; i < count; i++){
+    particles.push({
+      x:Math.random() * window.innerWidth,
+      y:Math.random() * window.innerHeight,
+      r:Math.random() * 1.8 + 1,
+      vy:-(Math.random() * 0.18 + 0.05),
+      vx:(Math.random() - 0.5) * 0.06,
+      hue:Math.random() < 0.5 ? 'cyan' : 'magenta',
+      alpha:Math.random() * 0.4 + 0.25
+    });
+  }
+}
+
+function drawParticlesFrame(){
+  const ctx = dom.canvas.getContext('2d');
+  const w = dom.canvas.width;
+  const h = dom.canvas.height;
+
+  ctx.clearRect(0,0,w,h);
+
+  particles.forEach(function(p){
+    p.x += p.vx * speedMultiplier;
+    p.y += p.vy * speedMultiplier;
+
+    if(p.y < -10){p.y = h + 10;p.x = Math.random() * w;}
+    if(p.x < -10) p.x = w + 10;
+    if(p.x > w + 10) p.x = -10;
+
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI * 2);
+
+    const color = p.hue === 'cyan'
+      ? 'rgba(0,255,242,' + p.alpha + ')'
+      : 'rgba(255,46,232,' + p.alpha + ')';
+
+    ctx.fillStyle = color;
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = color;
+    ctx.fill();
+  });
+
+  bgAnimationId = requestAnimationFrame(drawParticlesFrame);
+}
+
+function startBackgroundAnimation(){
+  if(bgAnimationId) return;
+  resizeCanvas();
+  createParticles(46);
+  drawParticlesFrame();
+  dom.bgGradient.classList.remove('paused');
+}
+
+function stopBackgroundAnimation(){
+  if(bgAnimationId){
+    cancelAnimationFrame(bgAnimationId);
+    bgAnimationId = null;
+  }
+  if(dom.canvas){
+    dom.canvas.getContext('2d').clearRect(0,0,dom.canvas.width,dom.canvas.height);
+  }
+  dom.bgGradient.classList.add('paused');
+}
+
+function applyAnimSpeed(){
+  speedMultiplier = settings.bgAnimSpeed === 'relaxed' ? 0.45 : 1;
+  dom.bgGradient.classList.toggle('relaxed',settings.bgAnimSpeed === 'relaxed');
+}
+
+function toggleBackgroundAnimation(on){
+  on ? startBackgroundAnimation() : stopBackgroundAnimation();
+}
+
+/* ============================
+   SFX
+============================ */
+
+function ensureAudioCtx(){
+  if(!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    audioCtx = new AC();
+  }
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(freq,duration,type,delay,volumeScale){
+  if(!settings.sfxOn) return;
+
+  const ctx = ensureAudioCtx();
+  if(!ctx) return;
+
+  delay = delay || 0;
+  volumeScale = volumeScale === undefined ? 1 : volumeScale;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+
+  const vol = (settings.sfxVolume / 100) * 0.22 * volumeScale;
+  const t0 = ctx.currentTime + delay;
+
+  gain.gain.setValueAtTime(0.0001,t0);
+  gain.gain.linearRampToValueAtTime(Math.max(vol,0.0001),t0 + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001,t0 + duration);
+
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duration + 0.03);
+}
+
+function sfxMoveX(){playTone(660,0.12,'sine');}
+function sfxMoveO(){playTone(440,0.12,'sine');}
+function sfxButtonClick(){playTone(520,0.06,'triangle');}
+
+function sfxWin(){
+  playTone(523.25,0.15,'sine',0);
+  playTone(659.25,0.15,'sine',0.14);
+  playTone(783.99,0.28,'sine',0.28);
+}
+
+function sfxLose(){
+  playTone(400,0.22,'sawtooth',0,0.8);
+  playTone(280,0.28,'sawtooth',0.2,0.8);
+}
+
+function sfxDraw(){
+  playTone(360,0.16,'triangle',0);
+  playTone(360,0.16,'triangle',0.18);
+}
+
+function playMoveSound(player){
+  player === 'X' ? sfxMoveX() : sfxMoveO();
+}
+
+function playResultSound(winner){
+  if(gameMode === 'ai'){
+    winner === 'X' ? sfxWin() : sfxLose();
+  }else if(onlineActive){
+    winner === onlinePlayer ? sfxWin() : sfxLose();
+  }else{
+    sfxWin();
+  }
+}
+
+/* ============================
+   CONFETTI
+============================ */
+
+function clearConfetti(){
+  if(dom.confetti) dom.confetti.innerHTML = '';
+}
+
+function launchConfetti(){
+  if(!dom.confetti) return;
+
+  clearConfetti();
+
+  const colors = ['#00fff2','#ff2ee8','#8a3bff','#ffffff'];
+
+  for(let i = 0; i < 120; i++){
+    const piece = document.createElement('span');
+
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.width = (Math.random() * 7 + 5) + 'px';
+    piece.style.height = (Math.random() * 10 + 7) + 'px';
+    piece.style.setProperty('--drift',(Math.random() * 300 - 150) + 'px');
+    piece.style.setProperty('--rotation',(Math.random() * 1440 - 720) + 'deg');
+    piece.style.animationDuration = (Math.random() * 2 + 2.2) + 's';
+    piece.style.animationDelay = (Math.random() * 0.35) + 's';
+
+    dom.confetti.appendChild(piece);
+  }
+
+  setTimeout(clearConfetti,5000);
+}
+
+function shouldShowConfetti(winner){
+  if(onlineActive) return winner === onlinePlayer;
+  if(gameMode === '2p') return true;
+  return winner === 'X';
+}
+
+/* ============================
+   CRAZYGAMES
+============================ */
+
+let crazyGamesReady = false;
+
+async function initCrazyGames(){
+  try{
+    if(window.CrazyGames && window.CrazyGames.SDK){
+      await window.CrazyGames.SDK.init();
+      crazyGamesReady = true;
+    }
+  }catch(e){
+    crazyGamesReady = false;
+    console.log('CrazyGames SDK unavailable.',e);
+  }
+}
+
+function requestCrazyGamesAd(){
+  if(!crazyGamesReady || !window.CrazyGames || !window.CrazyGames.SDK || !window.CrazyGames.SDK.ad){
+    return;
+  }
+
+  function resumeAudio(){
+    if(audioCtx){
+      try{audioCtx.resume();}catch(e){}
+    }
+  }
+
+  try{
+    window.CrazyGames.SDK.ad.requestAd('midgame',{
+      adStarted:function(){
+        if(audioCtx){
+          try{audioCtx.suspend();}catch(e){}
+        }
+      },
+      adFinished:resumeAudio,
+      adError:resumeAudio
+    });
+  }catch(e){
+    console.log('CrazyGames ad error:',e);
+  }
+}
+
+function startCrazyGamesGameplay(){
+  try{
+    if(crazyGamesReady && window.CrazyGames.SDK.game && typeof window.CrazyGames.SDK.game.gameplayStart === 'function'){
+      window.CrazyGames.SDK.game.gameplayStart();
+    }
+  }catch(e){}
+}
+
+function updateCrazyGamesRoom(isJoinable){
+  try{
+    if(crazyGamesReady && window.CrazyGames.SDK.game && typeof window.CrazyGames.SDK.game.updateRoom === 'function' && onlineRoomId){
+      window.CrazyGames.SDK.game.updateRoom({
+        roomId:onlineRoomId,
+        isJoinable:!!isJoinable,
+        inviteParams:{roomId:onlineRoomId}
+      });
+    }
+  }catch(e){}
+}
+
+function leaveCrazyGamesRoom(){
+  try{
+    if(crazyGamesReady && window.CrazyGames.SDK.game && typeof window.CrazyGames.SDK.game.leftRoom === 'function'){
+      window.CrazyGames.SDK.game.leftRoom();
+    }
+  }catch(e){}
+}
+
+function getInviteRoomId(){
+  try{
+    if(crazyGamesReady && window.CrazyGames.SDK.game && typeof window.CrazyGames.SDK.game.getInviteParam === 'function'){
+      const roomId = window.CrazyGames.SDK.game.getInviteParam('roomId');
+      if(typeof roomId === 'string' && /^[A-Za-z0-9]{5}$/.test(roomId)){
+        return roomId.toUpperCase();
+      }
+    }
+  }catch(e){}
+
+  try{
+    const roomId = new URLSearchParams(window.location.search).get('roomId');
+    if(typeof roomId === 'string' && /^[A-Za-z0-9]{5}$/.test(roomId)){
+      return roomId.toUpperCase();
+    }
+  }catch(e){}
+
+  return null;
+}
+
+/* ============================
+   ONLINE MULTIPLAYER
+============================ */
+
+let toastTimer = null;
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if(!t) return;
+
+  t.textContent = msg;
+  t.classList.add('show');
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){t.classList.remove('show');},2200);
+}
+
+function setOnlineStatus(msg,show){
+  const el = document.getElementById('online-status');
+  if(!el) return;
+
+  el.textContent = msg || '';
+  el.classList.toggle('hidden',!show);
+}
+
+function isSocketReady(){
+  return !!onlineSocket && onlineSocket.connected;
+}
+
+function resetOnlineState(){
+  onlineActive = false;
+  onlineWaiting = false;
+  onlineQuick = false;
+  onlineRematchRequested = false;
+  onlineRoomId = null;
+  onlinePlayer = null;
+  onlineIncomingRoomId = null;
+  setOnlineStatus('',false);
+}
+
+function showGameOverModal(text,delay){
+  setTimeout(function(){
+    dom.gameoverTitle.textContent = text;
+    dom.btnPlayAgain.textContent = 'REMATCH';
+    dom.btnPlayAgain.disabled = false;
+    openModal('modal-gameover');
+    setTimeout(requestCrazyGamesAd,350);
+  },delay);
+}
+
+function createOnlineSocket(){
+  if(!SERVER_URL || typeof io !== 'function') return null;
+  if(onlineSocket) return onlineSocket;
+
+  onlineSocket = io(SERVER_URL,{
+    transports:['websocket','polling'],
+    reconnection:true,
+    timeout:8000
+  });
+
+  onlineSocket.on('connect',function(){
+    if(onlineIncomingRoomId){
+      onlineSocket.emit('join_room',{roomId:onlineIncomingRoomId});
+      onlineIncomingRoomId = null;
+    }
+  });
+
+  onlineSocket.on('disconnect',function(){
+    if(onlineActive){
+      gameActive = false;
+      setOnlineStatus('SERVER DISCONNECTED',true);
+      showToast('CONNECTION LOST');
+    }
+  });
+
+  onlineSocket.on('connect_error',function(){
+    showToast('ONLINE SERVER UNAVAILABLE');
+  });
+
+  onlineSocket.on('room_created',function(data){
+    onlineActive = true;
+    onlineWaiting = true;
+    onlineQuick = false;
+    onlineRoomId = data.roomId;
+    onlinePlayer = data.player || 'X';
+
+    updateCrazyGamesRoom(true);
+    startOnlineBoard('WAITING FOR FRIEND...');
+    showOnlineInvite(data.roomId);
+  });
+
+  onlineSocket.on('searching',function(){
+    onlineActive = true;
+    onlineWaiting = true;
+    onlineQuick = true;
+    startOnlineBoard('SEARCHING FOR PLAYER...');
+    setOnlineStatus('SEARCHING...',true);
+  });
+
+  onlineSocket.on('game_start',function(data){
+    onlineActive = true;
+    onlineWaiting = false;
+    onlineRematchRequested = false;
+    onlinePlayer = data.player;
+    onlineRoomId = data.roomId;
+
+    updateCrazyGamesRoom(false);
+    startCrazyGamesGameplay();
+
+    closeModal('modal-gameover');
+    clearConfetti();
+    startOnlineBoard();
+    applyOnlineBoard(data.board,data.currentPlayer);
+    setOnlineStatus('YOU ARE ' + onlinePlayer,true);
+    showToast('MATCH STARTED — YOU ARE ' + onlinePlayer);
+  });
+
+  onlineSocket.on('board_update',function(data){
+    if(!onlineActive) return;
+
+    applyOnlineBoard(data.board,data.currentPlayer);
+
+    if(data.lastMove && typeof data.lastMove.index === 'number'){
+      playMoveSound(data.lastMove.player);
+    }
+  });
+
+  onlineSocket.on('rematch_requested',function(){
+    showToast('OPPONENT WANTS A REMATCH');
+  });
+
+  onlineSocket.on('game_over',function(data){
+    if(!onlineActive) return;
+
+    gameActive = false;
+    onlineWaiting = false;
+    onlineRematchRequested = false;
+    updateCrazyGamesRoom(false);
+
+    applyOnlineBoard(data.board,data.currentPlayer);
+    dom.turnIndicator.classList.remove('thinking');
+
+    if(data.winner && Array.isArray(data.combo)){
+      highlightWinningCells(data.combo);
+      drawWinningLine(data.combo,data.winner);
+      playResultSound(data.winner);
+
+      if(shouldShowConfetti(data.winner)) launchConfetti();
+
+      const winText = data.winner === onlinePlayer ? 'YOU WIN!' : 'YOU LOSE!';
+      dom.turnIndicator.textContent = winText;
+      showGameOverModal(winText,700);
+    }else{
+      sfxDraw();
+      dom.turnIndicator.textContent = "IT'S A DRAW!";
+      showGameOverModal("IT'S A DRAW!",600);
+    }
+  });
+
+  onlineSocket.on('opponent_left',function(){
+    if(!onlineActive) return;
+
+    gameActive = false;
+    leaveCrazyGamesRoom();
+    resetOnlineState();
+    showToast('OPPONENT LEFT');
+    closeModal('modal-gameover');
+    clearBoardUI();
+    clearWinningLine();
+    dom.turnIndicator.textContent = 'OPPONENT LEFT — GO BACK TO MENU';
+    dom.turnIndicator.classList.remove('thinking');
+  });
+
+  onlineSocket.on('left_room',function(){
+    setOnlineStatus('',false);
+  });
+
+  onlineSocket.on('error',function(data){
+    const code = data && data.code ? data.code : 'ERROR';
+    const fatal = {
+      ROOM_FULL:'ROOM FULL — ONLY 2 PLAYERS',
+      ROOM_NOT_FOUND:'ROOM NOT FOUND',
+      ROOM_UNAVAILABLE:'ROOM UNAVAILABLE'
+    };
+
+    if(fatal[code]){
+      gameActive = false;
+      resetOnlineState();
+      dom.turnIndicator.textContent = fatal[code];
+      showToast(fatal[code]);
+    }else if(code === 'NOT_YOUR_TURN'){
+      showToast('NOT YOUR TURN');
+    }else if(code === 'BAD_MOVE'){
+      showToast('INVALID MOVE');
+    }else if(code === 'WAITING_FOR_OPPONENT' || code === 'REMATCH_WAITING'){
+      showToast('WAITING FOR OPPONENT...');
+    }else{
+      showToast(data && data.message ? data.message : 'ONLINE ERROR');
+    }
+  });
+
+  return onlineSocket;
+}
+
+function startOnlineBoard(statusText){
+  gameMode = '2p';
+  moveToken++;
+
+  board = Array(9).fill(null);
+  currentPlayer = 'X';
+  gameActive = !statusText;
+  onlineActive = true;
+
+  clearConfetti();
+  clearBoardUI();
+  clearWinningLine();
+  updateModeLabelUI();
+
+  if(dom.scoreboard) dom.scoreboard.style.display = 'none';
+
+  if(statusText){
+    dom.turnIndicator.textContent = statusText;
+    dom.turnIndicator.classList.remove('thinking');
+  }else{
+    updateOnlineTurnIndicator();
+  }
+
+  showScreen('screen-game');
+}
+
+function applyOnlineBoard(nextBoard,nextPlayer){
+  if(!Array.isArray(nextBoard) || nextBoard.length !== 9) return;
+
+  board = nextBoard.slice();
+  currentPlayer = nextPlayer === 'O' ? 'O' : 'X';
+  gameActive = !onlineWaiting;
+
+  clearBoardUI();
+
+  for(let i = 0; i < board.length; i++){
+    if(board[i] === 'X' || board[i] === 'O') renderCell(i,board[i]);
+  }
+
+  updateOnlineTurnIndicator();
+}
+
+function updateOnlineTurnIndicator(){
+  if(!onlineActive) return;
+
+  if(onlineWaiting){
+    dom.turnIndicator.textContent = onlineQuick ? 'SEARCHING FOR PLAYER...' : 'WAITING FOR FRIEND...';
+    dom.turnIndicator.classList.remove('thinking');
+    return;
+  }
+
+  const yourTurn = currentPlayer === onlinePlayer;
+
+  dom.turnIndicator.textContent = yourTurn ? 'YOUR TURN' : "OPPONENT'S TURN";
+  dom.turnIndicator.classList.toggle('thinking',!yourTurn);
+}
+
+function showOnlineInvite(roomId){
+  let link = '';
+
+  try{
+    if(crazyGamesReady && window.CrazyGames.SDK.game && typeof window.CrazyGames.SDK.game.inviteLink === 'function'){
+      const generated = window.CrazyGames.SDK.game.inviteLink({roomId:roomId});
+      if(typeof generated === 'string' && generated.indexOf('http') === 0) link = generated;
+    }
+  }catch(e){}
+
+  if(!link){
+    let base = window.location.href;
+
+    try{
+      if(window.self !== window.top && document.referrer) base = document.referrer;
+    }catch(e){}
+
+    base = base.split('#')[0].split('?')[0];
+    link = base + '?roomId=' + encodeURIComponent(roomId);
+  }
+
+  setOnlineStatus('ROOM ' + roomId,true);
+
+  if(navigator.share){
+    navigator.share({
+      title:'Neon Tic-Tac-Toe',
+      text:'Join my Neon Tic-Tac-Toe match! Room: ' + roomId,
+      url:link
+    }).catch(function(err){
+      if(err && err.name === 'AbortError') return;
+      copyInviteLink(link,roomId);
+    });
+  }else{
+    copyInviteLink(link,roomId);
+  }
+}
+
+function copyInviteLink(link,roomId){
+  function done(){showToast('ROOM ' + roomId + ' — INVITE LINK COPIED!');}
+  function manual(){
+    if(fallbackCopy(link)) done();
+    else window.prompt('Copy this invite link:',link);
+  }
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(link).then(done).catch(manual);
+  }else{
+    manual();
+  }
+}
+
+function fallbackCopy(text){
+  try{
+    const ta = document.createElement('textarea');
+
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+
+    document.body.appendChild(ta);
+    ta.select();
+
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+
+    return ok;
+  }catch(e){
+    return false;
+  }
+}
+
+/* Runs fn once the socket is connected */
+function withSocket(fn){
+  if(!SERVER_URL){
+    showToast('ONLINE SERVER NOT SET');
+    return;
+  }
+
+  const socket = createOnlineSocket();
+
+  if(!socket){
+    showToast('ONLINE MODE UNAVAILABLE');
+    return;
+  }
+
+  if(socket.connected){
+    fn(socket);
+  }else{
+    showToast('CONNECTING TO ONLINE SERVER...');
+    socket.once('connect',function(){fn(socket);});
+  }
+}
+
+function createOnlineRoom(){
+  withSocket(function(socket){socket.emit('create_room');});
+}
+
+function findOnlineMatch(){
+  withSocket(function(socket){socket.emit('find_match');});
+}
+
+function joinOnlineRoom(roomId){
+  if(!SERVER_URL || !roomId) return;
+
+  const socket = createOnlineSocket();
+  if(!socket) return;
+
+  onlineIncomingRoomId = roomId.toUpperCase();
+
+  if(socket.connected){
+    socket.emit('join_room',{roomId:onlineIncomingRoomId});
+    onlineIncomingRoomId = null;
+  }else{
+    showToast('CONNECTING TO MATCH...');
+  }
+}
+
+function requestOnlineRematch(){
+  if(!isSocketReady() || !onlineRoomId){
+    showToast('NOT CONNECTED');
+    return;
+  }
+
+  if(onlineWaiting){
+    showToast('WAITING FOR OPPONENT...');
+    return;
+  }
+
+  if(onlineRematchRequested) return;
+
+  onlineRematchRequested = true;
+  dom.btnPlayAgain.disabled = true;
+  dom.btnPlayAgain.textContent = 'WAITING...';
+  dom.turnIndicator.textContent = 'WAITING FOR OPPONENT...';
+
+  onlineSocket.emit('rematch');
+}
+
+function leaveOnlineRoom(){
+  leaveCrazyGamesRoom();
+
+  if(onlineSocket && onlineSocket.connected){
+    onlineSocket.emit('leave_room');
+  }
+
+  resetOnlineState();
+}
+
+function startIncomingRoom(roomId){
+  onlineActive = true;
+  onlineWaiting = true;
+  onlineQuick = false;
+  startOnlineBoard('CONNECTING TO MATCH...');
+  joinOnlineRoom(roomId);
+}
+
+function handleIncomingInvite(){
+  /* Invite Friend is COMING SOON - invite links are disabled for now */
+}
+
+/* ============================
+   SCREENS / MODALS
+============================ */
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+}
+
+function openModal(id){document.getElementById(id).classList.remove('hidden');}
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
+
+/* ============================
+   GAME LOGIC
+============================ */
+
+function checkWinner(bd){
+  for(let k = 0; k < WIN_COMBOS.length; k++){
+    const c = WIN_COMBOS[k];
+    if(bd[c[0]] && bd[c[0]] === bd[c[1]] && bd[c[0]] === bd[c[2]]){
+      return {winner:bd[c[0]],combo:c};
+    }
+  }
+  return null;
+}
+
+function isBoardFull(bd){
+  return bd.every(function(v){return v !== null;});
+}
+
+function startMatch(mode){
+  if(onlineActive) leaveOnlineRoom();
+
+  gameMode = mode;
+  difficulty = settings.defaultDifficulty;
+
+  if(dom.scoreboard) dom.scoreboard.style.display = mode === '2p' ? 'none' : 'flex';
+
+  moveToken++;
+
+  board = Array(9).fill(null);
+  gameActive = true;
+  currentPlayer = 'X';
+
+  closeModal('modal-gameover');
+  clearConfetti();
+  clearBoardUI();
+  clearWinningLine();
+  updateModeLabelUI();
+  updateTurnIndicator();
+
+  showScreen('screen-game');
+}
+
+function resetMatch(){
+  if(onlineActive){
+    if(onlineWaiting) showToast('WAITING FOR OPPONENT...');
+    else if(!gameActive) requestOnlineRematch();
+    else showToast('MATCH IN PROGRESS');
+    return;
+  }
+
+  moveToken++;
+
+  board = Array(9).fill(null);
+  gameActive = true;
+  currentPlayer = 'X';
+
+  clearConfetti();
+  clearBoardUI();
+  clearWinningLine();
+  updateTurnIndicator();
+}
+
+function backToMenu(){
+  if(onlineActive) leaveOnlineRoom();
+
+  moveToken++;
+  gameActive = false;
+
+  closeModal('modal-gameover');
+  clearConfetti();
+  showScreen('screen-menu');
+}
+
+function updateModeLabelUI(){
+  const isAi = gameMode === 'ai';
+
+  dom.modeLabel.textContent = onlineActive ? 'ONLINE' : (isAi ? 'VS AI' : '2 PLAYERS');
+
+  dom.difficultySelector.classList.toggle('hidden',!isAi);
+  dom.playerLabels.classList.toggle('hidden',!isAi);
+
+  /* Invite only for 2-player mode (hidden during quick match) */
+  dom.btnInvite.classList.toggle('hidden',gameMode !== '2p' || onlineQuick);
+
+  updateDifficultyButtonsUI();
+}
+
+function updateDifficultyButtonsUI(){
+  dom.diffButtons.forEach(function(btn){
+    btn.classList.toggle('active',btn.dataset.difficulty === difficulty);
+  });
+}
+
+function updateTurnIndicator(){
+  if(!gameActive) return;
+
+  if(onlineActive){
+    updateOnlineTurnIndicator();
+    return;
+  }
+
+  if(gameMode === 'ai' && currentPlayer === 'O'){
+    dom.turnIndicator.textContent = 'AI THINKING...';
+    dom.turnIndicator.classList.add('thinking');
+  }else{
+    dom.turnIndicator.textContent = "PLAYER " + currentPlayer + "'S TURN";
+    dom.turnIndicator.classList.remove('thinking');
+  }
+}
+
+function handleCellClick(index){
+  if(!gameActive) return;
+
+  if(onlineActive){
+    if(!isSocketReady()) return;
+
+    if(onlineWaiting){
+      showToast(onlineQuick ? 'SEARCHING FOR PLAYER...' : 'WAITING FOR FRIEND...');
+      return;
+    }
+
+    if(currentPlayer !== onlinePlayer){
+      showToast("OPPONENT'S TURN");
+      return;
+    }
+
+    if(board[index] !== null) return;
+
+    const now = Date.now();
+    if(now - onlineLastActionAt < 120) return;
+    onlineLastActionAt = now;
+
+    onlineSocket.emit('make_move',{index:index});
+    return;
+  }
+
+  if(gameMode === 'ai' && currentPlayer === 'O') return;
+  if(board[index] !== null) return;
+
+  makeMove(index,currentPlayer);
+}
+
+function makeMove(index,player){
+  board[index] = player;
+
+  renderCell(index,player);
+  playMoveSound(player);
+
+  const winResult = checkWinner(board);
+
+  if(winResult){
+    handleWin(winResult);
+    return;
+  }
+
+  if(isBoardFull(board)){
+    handleDraw();
+    return;
+  }
+
+  currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  updateTurnIndicator();
+
+  if(gameMode === 'ai' && currentPlayer === 'O' && gameActive){
+    triggerAIMove();
+  }
+}
+
+/* ============================
+   AI
+============================ */
+
+function triggerAIMove(){
+  dom.board.classList.add('locked');
+
+  const currentToken = moveToken;
+
+  setTimeout(function(){
+    if(!gameActive || moveToken !== currentToken || currentPlayer !== 'O') return;
+
+    dom.board.classList.remove('locked');
+
+    const aiIndex = getAIMove(difficulty,board);
+
+    if(aiIndex !== null && aiIndex !== undefined){
+      makeMove(aiIndex,'O');
+    }
+  },450);
+}
+
+function getAIMove(diff,bd){
+  const available = getAvailableIndices(bd);
+
+  if(available.length === 0) return null;
+
+  if(diff === 'easy'){
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  if(diff === 'medium'){
+    return Math.random() < 0.70
+      ? getBestMinimaxMove(bd)
+      : available[Math.floor(Math.random() * available.length)];
+  }
+
+  return getBestMinimaxMove(bd);
+}
+
+function getAvailableIndices(bd){
+  const idxs = [];
+  for(let i = 0; i < 9; i++){
+    if(bd[i] === null) idxs.push(i);
+  }
+  return idxs;
+}
+
+function getBestMinimaxMove(bd){
+  let bestScore = -Infinity;
+  let bestMove = null;
+
+  const avail = getAvailableIndices(bd);
+
+  for(let i = 0; i < avail.length; i++){
+    const idx = avail[i];
+
+    bd[idx] = 'O';
+    const score = minimax(bd,0,false,-Infinity,Infinity);
+    bd[idx] = null;
+
+    if(score > bestScore){
+      bestScore = score;
+      bestMove = idx;
+    }
+  }
+
+  return bestMove !== null ? bestMove : avail[0];
+}
+
+function minimax(bd,depth,isMaximizing,alpha,beta){
+  const res = checkWinner(bd);
+
+  if(res) return res.winner === 'O' ? 10 - depth : depth - 10;
+  if(isBoardFull(bd)) return 0;
+
+  const avail = getAvailableIndices(bd);
+
+  if(isMaximizing){
+    let maxEval = -Infinity;
+
+    for(let i = 0; i < avail.length; i++){
+      bd[avail[i]] = 'O';
+      const e = minimax(bd,depth + 1,false,alpha,beta);
+      bd[avail[i]] = null;
+
+      maxEval = Math.max(maxEval,e);
+      alpha = Math.max(alpha,e);
+      if(beta <= alpha) break;
+    }
+
+    return maxEval;
+  }
+
+  let minEval = Infinity;
+
+  for(let i = 0; i < avail.length; i++){
+    bd[avail[i]] = 'X';
+    const e = minimax(bd,depth + 1,true,alpha,beta);
+    bd[avail[i]] = null;
+
+    minEval = Math.min(minEval,e);
+    beta = Math.min(beta,e);
+    if(beta <= alpha) break;
+  }
+
+  return minEval;
+}
+
+/* ============================
+   WIN / DRAW (LOCAL)
+============================ */
+
+function handleWin(result){
+  gameActive = false;
+
+  const winner = result.winner;
+
+  if(winner === 'X') scores.x++;
+  else scores.o++;
+
+  saveScores();
+  updateScoreboardUI();
+
+  highlightWinningCells(result.combo);
+  drawWinningLine(result.combo,winner);
+
+  playResultSound(winner);
+
+  if(shouldShowConfetti(winner)) launchConfetti();
+
+  const winText = gameMode === 'ai'
+    ? (winner === 'X' ? 'PLAYER X WINS!' : 'AI WINS!')
+    : ('PLAYER ' + winner + ' WINS!');
+
+  dom.turnIndicator.textContent = winText;
+  dom.turnIndicator.classList.remove('thinking');
+
+  setTimeout(function(){
+    dom.gameoverTitle.textContent = winText;
+    dom.btnPlayAgain.textContent = 'PLAY AGAIN';
+    dom.btnPlayAgain.disabled = false;
+
+    openModal('modal-gameover');
+    setTimeout(requestCrazyGamesAd,350);
+  },700);
+}
+
+function handleDraw(){
+  gameActive = false;
+
+  scores.draws++;
+
+  saveScores();
+  updateScoreboardUI();
+
+  sfxDraw();
+
+  dom.turnIndicator.textContent = "IT'S A DRAW!";
+  dom.turnIndicator.classList.remove('thinking');
+
+  setTimeout(function(){
+    dom.gameoverTitle.textContent = "IT'S A DRAW!";
+    dom.btnPlayAgain.textContent = 'PLAY AGAIN';
+    dom.btnPlayAgain.disabled = false;
+
+    openModal('modal-gameover');
+    setTimeout(requestCrazyGamesAd,350);
+  },600);
+}
+
+/* ============================
+   BOARD UI
+============================ */
+
+function clearBoardUI(){
+  dom.cells.forEach(function(cell,i){
+    cell.textContent = '';
+    cell.className = 'cell';
+    cell.removeAttribute('disabled');
+    cell.setAttribute('aria-label','Cell ' + (i + 1) + ': empty');
+  });
+
+  dom.board.classList.remove('locked');
+}
+
+function renderCell(index,player){
+  const cell = dom.cells[index];
+
+  cell.textContent = player;
+  cell.classList.add(player === 'X' ? 'x-mark' : 'o-mark');
+  cell.setAttribute('disabled','true');
+  cell.setAttribute('aria-label','Cell ' + (index + 1) + ': ' + player);
+}
+
+function highlightWinningCells(combo){
+  combo.forEach(function(idx){dom.cells[idx].classList.add('win-cell');});
+}
+
+function drawWinningLine(combo,winner){
+  const coords = LINE_COORDS[combo.join(',')];
+  if(!coords) return;
+
+  dom.winLine.setAttribute('x1',coords[0]);
+  dom.winLine.setAttribute('y1',coords[1]);
+  dom.winLine.setAttribute('x2',coords[2]);
+  dom.winLine.setAttribute('y2',coords[3]);
+
+  dom.winLine.className.baseVal = 'win-line ' + (winner === 'X' ? 'win-line-x' : 'win-line-o');
+  dom.winLineSvg.classList.add('visible');
+}
+
+function clearWinningLine(){
+  dom.winLineSvg.classList.remove('visible');
+}
+
+function updateScoreboardUI(){
+  dom.scoreX.textContent = scores.x;
+  dom.scoreO.textContent = scores.o;
+  dom.scoreDraws.textContent = scores.draws;
+}
+
+/* ============================
+   SETTINGS UI
+============================ */
+
+function setToggleUI(id,active){
+  const el = document.getElementById(id);
+  if(el){
+    el.classList.toggle('active',active);
+    el.setAttribute('aria-checked',active ? 'true' : 'false');
+  }
+}
+
+function setSegmentActive(containerId,val){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  container.querySelectorAll('.segment-btn').forEach(function(b){
+    b.classList.toggle('active',b.dataset.value === val);
+  });
+}
+
+function syncSettingsUI(){
+  setToggleUI('toggle-sfx',settings.sfxOn);
+  dom.sliderSfxVol.value = settings.sfxVolume;
+
+  setToggleUI('toggle-bg-anim',settings.bgAnimOn);
+
+  setSegmentActive('segment-anim-speed',settings.bgAnimSpeed);
+  setSegmentActive('segment-default-mode',settings.defaultMode);
+  setSegmentActive('segment-default-difficulty',settings.defaultDifficulty);
+
+  applyAnimSpeed();
+  toggleBackgroundAnimation(settings.bgAnimOn);
+}
+
+function attachSettingsEvents(){
+
+  dom.toggleSfx.addEventListener('click',function(){
+    settings.sfxOn = !settings.sfxOn;
+    saveSettings();
+    setToggleUI('toggle-sfx',settings.sfxOn);
+  });
+
+  dom.sliderSfxVol.addEventListener('input',function(e){
+    settings.sfxVolume = parseInt(e.target.value,10);
+    saveSettings();
+  });
+
+  dom.toggleBgAnim.addEventListener('click',function(){
+    settings.bgAnimOn = !settings.bgAnimOn;
+    saveSettings();
+    setToggleUI('toggle-bg-anim',settings.bgAnimOn);
+    toggleBackgroundAnimation(settings.bgAnimOn);
+  });
+
+  document.getElementById('segment-anim-speed').addEventListener('click',function(e){
+    if(e.target.classList.contains('segment-btn')){
+      settings.bgAnimSpeed = e.target.dataset.value;
+      saveSettings();
+      setSegmentActive('segment-anim-speed',settings.bgAnimSpeed);
+      applyAnimSpeed();
+    }
+  });
+
+  document.getElementById('segment-default-mode').addEventListener('click',function(e){
+    if(e.target.classList.contains('segment-btn')){
+      settings.defaultMode = e.target.dataset.value;
+      saveSettings();
+      setSegmentActive('segment-default-mode',settings.defaultMode);
+    }
+  });
+
+  document.getElementById('segment-default-difficulty').addEventListener('click',function(e){
+    if(e.target.classList.contains('segment-btn')){
+      settings.defaultDifficulty = e.target.dataset.value;
+      saveSettings();
+      setSegmentActive('segment-default-difficulty',settings.defaultDifficulty);
+    }
+  });
+
+  dom.btnResetScores.addEventListener('click',function(){
+    scores = Object.assign({},DEFAULT_SCORES);
+    saveScores();
+    updateScoreboardUI();
+    sfxButtonClick();
+  });
+
+  dom.btnResetSettings.addEventListener('click',function(){
+    settings = Object.assign({},DEFAULT_SETTINGS);
+    saveSettings();
+    syncSettingsUI();
+    sfxButtonClick();
+  });
+}
+
+/* ============================
+   EVENTS
+============================ */
+
+function bindEvents(){
+
+  dom.btn2p.addEventListener('click',function(){
+    sfxButtonClick();
+    startMatch('2p');
+  });
+
+  dom.btnAi.addEventListener('click',function(){
+    sfxButtonClick();
+    startMatch('ai');
+  });
+
+  dom.btnOnline.addEventListener('click',function(){
+    sfxButtonClick();
+    findOnlineMatch();
+  });
+
+  dom.btnSettingsMenu.addEventListener('click',function(){
+    sfxButtonClick();
+    openModal('modal-settings');
+  });
+
+  dom.btnSettingsGame.addEventListener('click',function(){
+    sfxButtonClick();
+    openModal('modal-settings');
+  });
+
+  dom.btnCloseSettings.addEventListener('click',function(){
+    sfxButtonClick();
+    closeModal('modal-settings');
+  });
+
+  dom.btnBack.addEventListener('click',function(){
+    sfxButtonClick();
+    backToMenu();
+  });
+
+  /* INVITE FRIEND */
+  dom.btnInvite.addEventListener('click',function(){
+    sfxButtonClick();
+    showToast('COMING SOON');
+  });
+
+  dom.btnResetMatch.addEventListener('click',function(){
+    sfxButtonClick();
+    resetMatch();
+  });
+
+  dom.btnPlayAgain.addEventListener('click',function(){
+    sfxButtonClick();
+
+    if(onlineActive){
+      requestOnlineRematch();
+      return;
+    }
+
+    closeModal('modal-gameover');
+    resetMatch();
+  });
+
+  dom.btnViewBoard.addEventListener('click',function(){
+    sfxButtonClick();
+    closeModal('modal-gameover');
+  });
+
+  dom.diffButtons.forEach(function(btn){
+    btn.addEventListener('click',function(){
+      sfxButtonClick();
+      difficulty = btn.dataset.difficulty;
+      updateDifficultyButtonsUI();
+    });
+  });
+
+  dom.cells.forEach(function(cell){
+    cell.addEventListener('click',function(){
+      handleCellClick(parseInt(cell.dataset.index,10));
+    });
+  });
+
+  window.addEventListener('resize',resizeCanvas);
+}
+
+/* ============================
+   INIT
+============================ */
+
+async function init(){
+  cacheDOM();
+
+  settings = loadSettings();
+  scores = loadScores();
+
+  syncSettingsUI();
+  updateScoreboardUI();
+
+  bindEvents();
+  attachSettingsEvents();
+
+  await initCrazyGames();
+
+  if(SERVER_URL){
+    createOnlineSocket();
+
+    try{
+      if(crazyGamesReady && window.CrazyGames.SDK.game && typeof window.CrazyGames.SDK.game.addJoinRoomListener === 'function'){
+        window.CrazyGames.SDK.game.addJoinRoomListener(function(params){
+          const roomId = params && params.roomId;
+
+          /* Invite Friend is COMING SOON - ignore invite joins for now */
+          void roomId;
+        });
+      }
+    }catch(e){}
+  }
+
+  /* Incoming CrazyGames room invite / instant multiplayer */
+  handleIncomingInvite();
+
+  try{
+    if(
+      SERVER_URL &&
+      crazyGamesReady &&
+      window.CrazyGames.SDK.game &&
+      window.CrazyGames.SDK.game.isInstantMultiplayer === true &&
+      !getInviteRoomId()
+    ){
+      findOnlineMatch();
+    }
+  }catch(e){}
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+
+</body>
+</html>
